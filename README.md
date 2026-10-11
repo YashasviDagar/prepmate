@@ -336,7 +336,7 @@ Test suites:
   per-instance, so limits are not shared across serverless or multi-instance deploys.
 - Password reset emails need `RESEND_API_KEY` and `EMAIL_FROM`; without them the
   reset link is only shown in the UI outside production.
-- Database integration tests require a provisioned test database.
+- Database integration tests need `TEST_DATABASE_URL` locally; CI provisions one automatically.
 - AI latency depends on the configured provider; long answers take longer to
   evaluate.
 
@@ -352,6 +352,22 @@ Test suites:
 - Email delivery for password resets and interview reminders.
 
 ---
+
+## Deployment
+
+The app deploys to any Node host that supports Next.js (Vercel is the simplest).
+
+1. Provision PostgreSQL and set `DATABASE_URL` (pooled) and `DIRECT_URL` (direct).
+2. Set `AUTH_SECRET`, `AUTH_URL`/`NEXT_PUBLIC_APP_URL` (your public URL) and the
+   `AI_*` variables. Optionally set `RESEND_API_KEY`/`EMAIL_FROM` and
+   `UPSTASH_REDIS_REST_URL`/`TOKEN` (recommended on serverless).
+3. Apply migrations with `DATABASE_URL="$DIRECT_URL" pnpm db:deploy`, then
+   optionally `pnpm db:seed`.
+4. Build with `pnpm build` and run with `pnpm start` (or let the platform do so).
+
+`.github/workflows/ci.yml` runs typecheck, lint, the full test suite (including
+database integration tests against a Postgres service) and a production build on
+every push and pull request.
 
 ## Project structure
 
