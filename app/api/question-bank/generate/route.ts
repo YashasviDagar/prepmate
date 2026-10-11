@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     const user = await requireApiUser();
 
-    const limit = rateLimit(`question-bank:generate:${user.id}`, 10, 60_000);
+    const limit = await rateLimit(`question-bank:generate:${user.id}`, 10, 60_000);
     if (!limit.ok) {
       return errorResponse(
         "RATE_LIMITED",

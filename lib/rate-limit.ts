@@ -19,14 +19,7 @@ export type RateLimitResult = {
   retryAfterMs: number;
 };
 
-/**
- * Fixed-window in-memory rate limiter.
- *
- * Suitable for single-instance deployments and local development. For
- * multi-instance/serverless deployments swap the `buckets` map for a shared
- * store (e.g. Redis/Upstash) behind this same interface.
- */
-export function rateLimit(
+function memoryRateLimit(
   key: string,
   limit: number,
   windowMs: number,
@@ -47,6 +40,67 @@ export function rateLimit(
 
   bucket.count += 1;
   return { ok: true, remaining: limit - bucket.count, retryAfterMs: 0 };
+}
+
+/**
+ * Fixed-window rate limit via the Upstash Redis REST API, shared across
+ * instances. INCR + PEXPIRE NX sets the window on the first hit only.
+ */
+async function redisRateLimit(
+  url: string,
+  token: string,
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<RateLimitResult> {
+  const redisKey = `ratelimit:${key}`;
+  const response = await fetch(`${url.replace(/\/$/, "")}/pipeline`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify([
+      ["INCR", redisKey],
+      ["PEXPIRE", redisKey, windowMs, "NX"],
+      ["PTTL", redisKey],
+    ]),
+    signal: AbortSignal.timeout(2_000),
+  });
+  if (!response.ok) throw new Error(`Redis responded with ${response.status}`);
+
+  const results = (await response.json()) as Array<{ result?: number }>;
+  const count = Number(results[0]?.result ?? 0);
+  const ttl = Number(results[2]?.result ?? windowMs);
+
+  if (count > limit) {
+    return { ok: false, remaining: 0, retryAfterMs: ttl > 0 ? ttl : windowMs };
+  }
+  return { ok: true, remaining: limit - count, retryAfterMs: 0 };
+}
+
+/**
+ * Fixed-window rate limiter. Uses Upstash Redis when UPSTASH_REDIS_REST_URL and
+ * UPSTASH_REDIS_REST_TOKEN are set (shared across instances/serverless);
+ * otherwise, or if Redis is unreachable, falls back to a per-instance
+ * in-memory limiter.
+ */
+export async function rateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<RateLimitResult> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (url && token) {
+    try {
+      return await redisRateLimit(url, token, key, limit, windowMs);
+    } catch (error) {
+      console.error("Redis rate limiter failed; using in-memory fallback", error);
+    }
+  }
+  return memoryRateLimit(key, limit, windowMs);
 }
 
 export async function getClientIp(): Promise<string> {

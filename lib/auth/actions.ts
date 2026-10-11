@@ -78,7 +78,7 @@ export async function registerAction(
   formData: FormData,
 ): Promise<AuthActionState> {
   const ip = await getClientIp();
-  const limit = rateLimit(`register:${ip}`, 5, 15 * 60 * 1000);
+  const limit = await rateLimit(`register:${ip}`, 5, 15 * 60 * 1000);
   if (!limit.ok) {
     return { status: "error", message: "Too many attempts. Please try again later." };
   }
@@ -134,7 +134,7 @@ export async function loginAction(
   formData: FormData,
 ): Promise<AuthActionState> {
   const ip = await getClientIp();
-  const limit = rateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
+  const limit = await rateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
   if (!limit.ok) {
     return { status: "error", message: "Too many attempts. Please try again later." };
   }
@@ -179,7 +179,7 @@ export async function forgotPasswordAction(
   formData: FormData,
 ): Promise<AuthActionState> {
   const ip = await getClientIp();
-  const limit = rateLimit(`forgot:${ip}`, 5, 15 * 60 * 1000);
+  const limit = await rateLimit(`forgot:${ip}`, 5, 15 * 60 * 1000);
   if (!limit.ok) {
     return { status: "error", message: "Too many requests. Please try again later." };
   }
@@ -247,7 +247,7 @@ export async function resetPasswordAction(
   formData: FormData,
 ): Promise<AuthActionState> {
   const ip = await getClientIp();
-  const limit = rateLimit(`reset:${ip}`, 10, 15 * 60 * 1000);
+  const limit = await rateLimit(`reset:${ip}`, 10, 15 * 60 * 1000);
   if (!limit.ok) {
     return { status: "error", message: "Too many attempts. Please try again later." };
   }

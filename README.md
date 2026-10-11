@@ -216,6 +216,7 @@ See `.env.example`. Summary:
 | `AI_MODEL` | for `openai` | e.g. `gpt-4o-mini`. |
 | `AI_TIMEOUT_MS` | optional | Provider timeout (default 30000). |
 | `NEXT_PUBLIC_APP_URL` | optional | Used to build reset links. |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | optional | Shared rate limiter for multi-instance/serverless deploys. |
 | `RESEND_API_KEY` / `EMAIL_FROM` | optional | When both are set, password reset links are emailed via Resend. |
 | `TEST_DATABASE_URL` | tests | Enables database integration tests. |
 | `SEED_DEMO_USER` | optional | Set to `true` to seed a demo account. |
@@ -314,7 +315,7 @@ Test suites:
   `requireApiUser()` / `requireUser()`.
 - **Input validation:** every mutation is validated with Zod on the server.
 - **Rate limiting:** fixed-window limiter on auth, answer, next and generation
-  endpoints (`lib/rate-limit.ts`). In-memory by default — see limitations.
+  endpoints (`lib/rate-limit.ts`). Shared via Upstash Redis when configured, otherwise in-memory — see limitations.
 - **Secrets:** API keys are server-only environment variables.
 - **AI output:** validated against Zod schemas before use; malformed output is
   retried once then rejected.
@@ -331,8 +332,8 @@ Test suites:
   hiring potential. Voice "delivery" notes describe observable speech only.
 - Voice input depends on browser support for the Web Speech API (best in
   Chromium browsers) and is English-oriented.
-- The in-memory rate limiter is per-instance; use a shared store (e.g. Redis) for
-  multi-instance or serverless deployments.
+- Without `UPSTASH_REDIS_REST_URL`/`TOKEN` the rate limiter is in-memory and
+  per-instance, so limits are not shared across serverless or multi-instance deploys.
 - Password reset emails need `RESEND_API_KEY` and `EMAIL_FROM`; without them the
   reset link is only shown in the UI outside production.
 - Database integration tests require a provisioned test database.

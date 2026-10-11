@@ -11,7 +11,7 @@ export async function POST(_request: Request, context: Context) {
   try {
     const user = await requireApiUser();
 
-    const limit = rateLimit(`interview:next:${user.id}`, 40, 60_000);
+    const limit = await rateLimit(`interview:next:${user.id}`, 40, 60_000);
     if (!limit.ok) {
       return errorResponse(
         "RATE_LIMITED",
