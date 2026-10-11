@@ -14,6 +14,7 @@ import {
 } from "@/lib/auth/credentials";
 import { hashPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/db/prisma";
+import { sendPasswordResetEmail } from "@/lib/email";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
@@ -194,7 +195,7 @@ export async function forgotPasswordAction(
 
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email },
-    select: { id: true },
+    select: { id: true, email: true },
   });
 
   // Always report success to avoid leaking which emails are registered.
@@ -219,12 +220,20 @@ export async function forgotPasswordAction(
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const resetLink = `${baseUrl}/reset-password?token=${token}`;
 
-  // No transactional email provider is configured. Outside production we
-  // surface the link so the flow remains usable; wire an email provider before
-  // going to production.
+  let emailed = false;
+  try {
+    emailed = await sendPasswordResetEmail(user.email, resetLink);
+  } catch (error) {
+    // Don't reveal delivery failures to the caller (account enumeration).
+    console.error("Failed to send password reset email", error);
+  }
+
+  // Without a working email provider, surface the link outside production so
+  // the flow stays usable in development.
   const exposeLink =
-    process.env.NODE_ENV !== "production" ||
-    process.env.AUTH_EXPOSE_RESET_LINK === "true";
+    !emailed &&
+    (process.env.NODE_ENV !== "production" ||
+      process.env.AUTH_EXPOSE_RESET_LINK === "true");
 
   return {
     status: "success",
