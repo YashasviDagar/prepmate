@@ -44,3 +44,9 @@ next-env.d.ts
 
 # keep the env template tracked
 !.env.example
+
+# AI tool skill copies
+/.agents/
+/.claude/
+/.windsurf/
+/skills-lock.json
