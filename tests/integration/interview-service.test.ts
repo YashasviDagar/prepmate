@@ -21,7 +21,7 @@ const baseConfig: CreateInterviewInput = {
   type: "TECHNICAL",
   mode: "PRACTICE",
   difficulty: "MEDIUM",
-  questionCount: 1,
+  questionCount: 3,
   topics: ["React", "JavaScript"],
 };
 
@@ -90,17 +90,18 @@ describeDb("interview service (database integration)", () => {
     expect(state.progress.totalPrimary).toBe(3);
   });
 
-  it("stores an answer and completes a single-question interview", async () => {
+  it("completes an interview after answering all questions", async () => {
     const { id } = await service.createInterview(userAId, baseConfig);
-    const started = await service.startInterview(userAId, id);
-    const question = started.progress.currentQuestion!;
+    let state = await service.startInterview(userAId, id);
 
-    // Kept short so the adaptive layer does not add a follow-up.
-    const state = await service.submitAnswer(userAId, id, {
-      questionId: question.id,
-      answer: "Closures capture scope.",
-      inputMode: "text",
-    });
+    // Kept short so the adaptive layer does not add follow-ups.
+    for (let i = 0; i < 10 && state.status !== "COMPLETED"; i++) {
+      state = await service.submitAnswer(userAId, id, {
+        questionId: state.progress.currentQuestion!.id,
+        answer: "Closures capture scope.",
+        inputMode: "text",
+      });
+    }
 
     expect(state.status).toBe("COMPLETED");
     expect(state.scores?.overall).toBeGreaterThan(0);
